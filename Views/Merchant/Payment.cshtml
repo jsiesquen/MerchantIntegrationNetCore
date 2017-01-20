@@ -1,0 +1,247 @@
+﻿@*
+    Payment.cshtml
+    merchant_integration
+
+     Created by Juan Pablo Yiguerimián on 10/25/16.
+     Copyright © 2016 ForceITS.All rights reserved.
+
+    The software code, programs, and documentation are the confidential and
+     proprietary information of ForceITS Corporation("Confidential Information").
+     You shall not disclose such Confidential Information and shall use it only
+     in accordance with the terms of the license agreement you entered into
+     with ForceITS or one of its licensed distributors.
+
+     ForceITS MAKES NO REPRESENTATIONS OR WARRANTIES ABOUT THE SUITABILITY OF THE
+     SOFTWARE, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+     IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+     PURPOSE, OR NON-INFRINGEMENT.ForceITS SHALL NOT BE LIABLE FOR ANY DAMAGES
+     SUFFERED BY LICENSEE AS A RESULT OF USING, MODIFYING OR DISTRIBUTING
+     THIS SOFTWARE OR ITS DERIVATIVES.*@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta charset="UTF-8">
+    <title>ForceITS Click2Pay</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/foundation/6.2.3/foundation.min.css" />
+    @*Link to the style sheet in server that contains some useful styles.*@
+    <link href="@ViewData["MainStyleSheetPath"]" rel="stylesheet">
+
+    <style type="text/css">
+        body {
+            padding: 0 10vw;
+            background-color: #F4F8FB;
+        }
+
+        h1 {
+            margin: 1em 0;
+            padding-bottom: .5em;
+            border-bottom: solid 2px gray;
+        }
+
+        #okPanel, #failPanel {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h2>@ViewData["Title"].</h2>
+    <h3>@ViewData["Message"]</h3>
+
+    <p>Click on 'Authenticate' to get an authorization token to do a payment. Then click on 'Buy Now' to send the request for a payment</p>
+
+    @*This form includes all the attributes needed to do the payment*@
+    <form name="frmPayment" method="post" enctype="multipart/form-data">
+        <div class="row">
+            <div class="small-6 medium-4 columns">
+                <label>
+                    Entry point
+                    <input id="entryPoint" name="entryPoint" type="text">
+                </label>
+            </div>
+            <div class="small-6 medium-4 columns">
+                <label>
+                    Merchant ID
+                    <input id="merchantId" name="merchantId" type="text" value="@ViewData["merchantId"]">
+                </label>
+            </div>
+            <div class="small-6 medium-4 columns">
+                <label>
+                    API Key
+                    <select id="apiKey" name="apiKey">
+                        <option value="@ViewData["apikey"]">@ViewData["apikey"]</option>
+                    </select>
+                </label>
+            </div>
+        </div>
+        <div class="row">
+            <div class="small-6 medium-4 columns">
+                <label>
+                    PDID
+                    <input id="pdid" type="text">
+                </label>
+            </div>
+            <div class="small-6 medium-4 columns">
+                <label>
+                    Currency
+                    <input id="currency" name="currency" type="text" value="@ViewData["currency"]">
+                </label>
+            </div>
+            <div class="small-6 medium-4 columns">
+                <label>
+                    Amount
+                    <input id="amount" name="amount" type="text" value="@ViewData["amount"]">
+                </label>
+            </div>
+            <div class="small-6 medium-4 columns">
+                <label>
+                    Detail
+                    <input id="detail" name="detail" type="text" value="@ViewData["detail"]">
+                </label>
+            </div>
+            <div class="small-6 medium-4 columns">
+                <label>
+                    Type
+                    <input id="type" name="type" type="text" value="@ViewData["type"]">
+                </label>
+            </div>
+            <div class="small-6 medium-4 columns end">
+                <label>
+                    Country
+                    <input id="country" name="country" type="text" value="@ViewData["country"]">
+                </label>
+            </div>
+            <div class="small-12 columns">
+                <label>
+                    Token
+                    <input id="token" type="text" value="@ViewData["token"]">
+                </label>
+            </div>
+        </div>
+    </form>
+
+    @*This div include the buttons to get the Authentication token and to do a payment.*@
+    <div class="row">
+        <div class="small-12 medium-3 columns">
+            <button type="button" onclick="authenticate();" class="expanded button" formaction="GenerateAuth" id="authButton">Authenticate</button>
+        </div>
+        <div class="small-12 medium-3 columns end">
+            <button class="expanded success button" id="checkoutButton">Buy Now</button>
+        </div>
+    </div>
+
+    @*This div includes containers to show messages when succeeded or failed. *@
+    <div class="row">
+        <div class="small-12 columns">
+            <div id="failPanel" class="alert callout">
+                <h5>An error has occurred</h5>
+                <p id="messageFail"></p>
+            </div>
+        </div>
+        <div class="small-12 columns">
+            <div id="okPanel" class="success callout">
+                <h5>Thank You!</h5>
+                <p id="messageOK"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- loader goes at the end -->
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/es6-promise/4.0.2/es6-promise.auto.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/foundation/6.2.3/foundation.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/fetch/0.9.0/fetch.min.js"></script>
+    @*This js library points to the payment service and includes functions to call the payment process*@
+    <script src="@ViewData["MainJsLibraryPath"]"></script>
+
+    <script>
+      $(document).foundation();
+
+      // patch for IE
+      if (!window.location.origin) {
+        window.location.origin = window.location.protocol + "//" + window.location.hostname + (window.location.port ? ':' + window.location.port: '');
+      }
+
+      function checkStatus(response) {
+        if (response.status >= 200 && response.status < 300) {
+          return response;
+        } else {
+          throw response.statusText;
+        }
+      }
+
+      function parseJSON(response) {
+        return response.json();
+      }
+
+      function getOptions() {
+        return {
+
+          // Token
+          // Token comes embedded in the html from the origin server.
+          // This is good for traditional, client/server, template based apps,
+          // but if the shopper cancels the transaction, it becomes invalid and
+          // a page refresh is necessary in order to get a new token.
+          token: document.getElementById('token').value,
+
+          // Payment data identification (internal Merchant system code asociated with this payment)
+          pdid: document.getElementById('pdid').value,
+
+          // Transaction currency
+          currency: document.getElementById('currency').value,
+
+          // Transaction amount in selected currency
+          amount: document.getElementById('amount').value,
+
+          // Detail for the purchase
+          detail: document.getElementById('detail').value,
+
+          // Type of payment (online deposit, deposit, …)
+          type: document.getElementById('type').value,
+
+          // Country
+          country: document.getElementById('country').value,
+
+          // Language
+          lang: 'es',
+
+          // Status callback
+          callback: function(response) {
+            if (response.status == 'ok') {
+              $('#okPanel').show();
+              $('#failPanel').hide();
+
+              $('#messageOK').html('The payment has been done successfully');
+            } else {
+              $('#okPanel').hide();
+              $('#failPanel').show();
+
+              $('#messageFail').html(response.message);
+            }
+          }
+        };
+      }
+
+      // set the entry point to the domain that is set in configuration
+      document.getElementById('entryPoint').value = "@ViewData["EndPoint"]";
+
+      // set a random PDID
+      document.getElementById('pdid').value =
+        Math.floor(Math.random() * (99999999999999999999 - 11111111111111111111 + 1)) + 11111111111111111111;
+
+      var checkoutButton = document.getElementById('checkoutButton');
+      checkoutButton.addEventListener('click', function() {
+        forceits.open(getOptions(), document.getElementById('entryPoint').value || undefined);
+      });
+
+      function authenticate() {
+          document.frmPayment.action = "GenerateAuth";
+          document.frmPayment.submit();
+      }
+
+    </script>
+</body>
+</html>
